@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GENITUS SEKTOR-ROTATIONS-SIGNAL</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{--bg:#f4f7fb;--surface:#ffffff;--border:#d9e2ec;--accent:#0e7490;--gold:#b45309;--green:#15803d;--red:#b91c1c;--muted:#52606d;--text:#1e293b;--bright:#0f172a;--mono:'Space Mono',monospace;--sans:'Rajdhani',sans-serif;}
+    :root.dark-theme{--bg:#080c10;--surface:#0d1117;--border:#1e2d3d;--accent:#00d4ff;--gold:#f0c040;--green:#00ff88;--red:#ff3b5c;--muted:#7d92a8;--text:#c8d8e8;--bright:#ffffff;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;min-height:100vh;transition:background .25s,color .25s;}
+    header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:200;}
+    .logo{display:flex;align-items:center;gap:12px;}
+    .logo-mark{width:32px;height:32px;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:var(--accent);}
+    .logo-text{font-family:var(--mono);font-size:13px;letter-spacing:3px;color:var(--bright);}
+    .logo-sub{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--muted);display:block;margin-top:1px;}
+    #themeToggleBtn{background:none;border:1px solid var(--border);color:var(--accent);width:30px;height:30px;border-radius:2px;cursor:pointer;font-size:14px;}
+    .cache-badge{font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:3px 8px;border:1px solid var(--accent);color:var(--accent);border-radius:2px;text-transform:uppercase;}
+    .main{max-width:1200px;margin:0 auto;padding:20px;}
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:18px;}
+    .panel h2{font-family:var(--mono);font-size:13px;letter-spacing:1px;color:var(--bright);margin-bottom:14px;text-transform:uppercase;}
+    .chart-wrap{position:relative;height:420px;}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;}
+    select{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 10px;outline:none;border-radius:2px;}
+    table{width:100%;border-collapse:collapse;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+    th{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;padding:9px 12px;text-align:right;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+    th:hover{color:var(--accent);}
+    th.sorted{color:var(--accent);}
+    th:first-child{text-align:left;}
+    td{padding:8px 12px;border-bottom:1px solid rgba(125,146,168,0.15);text-align:right;}
+    td:first-child{font-weight:700;color:var(--accent);text-align:left;font-family:var(--mono);}
+    .trend{font-family:var(--mono);font-weight:700;}
+    .trend.up{color:var(--green);}
+    .trend.down{color:var(--red);}
+    .trend.flat{color:var(--muted);}
+    .disclaimer{font-size:10px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:10px;margin-top:14px;}
+    .loading-line{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;padding:50px;}
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="logo-mark">R</div><div><span class="logo-text">GENITUS</span><span class="logo-sub">SEKTOR-ROTATIONS-SIGNAL</span></div></div>
+  <div style="display:flex;align-items:center;gap:10px"><span class="cache-badge" id="cacheBadge">● lädt...</span><button id="themeToggleBtn" title="Toggle theme">🌙</button></div>
+</header>
+<div class="main">
+  <div class="panel">
+    <h2>Durchschnittliche Dividendenrendite je Sektor über die Zeit</h2>
+    <div class="toolbar">
+      <select id="rangeSelect" onchange="renderAll()">
+        <option value="10">Letzte 10 Jahre</option>
+        <option value="20" selected>Letzte 20 Jahre</option>
+        <option value="999">Gesamter Zeitraum</option>
+      </select>
+    </div>
+    <div class="chart-wrap"><canvas id="rotationChart"></canvas></div>
+  </div>
+  <div class="panel">
+    <h2>Rotations-Tabelle</h2>
+    <table>
+      <thead><tr id="headRow"></tr></thead>
+      <tbody id="bodyRows"><tr><td colspan="6" class="loading-line">Lade Sektordaten...</td></tr></tbody>
+    </table>
+  </div>
+  <div class="disclaimer">Rendite-Proxy = Summe der "PctOfPrice"-Werte (Dividendenbetrag ÷ Kurs am Zahltag) aller Zahlungen eines Kalenderjahres, gemittelt über alle Firmen eines GICS-Sektors — eine Annäherung an die durchschnittliche Dividendenrendite, nicht identisch mit einer marktkapitalisierungsgewichteten Index-Rendite. Sektor-Zuordnung stammt aus dem S&amp;P-500-Datensatz (1.301 Firmen) — andere Börsen sind hier nicht abgedeckt. Einzelzahlungen mit unplausibel hohem Pct-Wert (&gt;15%, meist korrupte Kursdaten bei illiquiden OTC-Titeln) wurden vor der Mittelwertbildung verworfen. Laufendes Kalenderjahr ausgeschlossen (unvollständig). "Trend" vergleicht die letzten 3 vs. die vorherigen 3 vollständigen Jahre. Reine Cache-Auswertung, keine Live-Abfrage, kein Anlagesignal im eigentlichen Sinne — historische Beobachtung, keine Anlageberatung.</div>
+</div>
+<script>
+  const DATA_URL = 'https://raw.githubusercontent.com/Babybounce500/genitus-ticker-cache/main/sector-rotation-data.json';
+  (function(){
+    const KEY='genitusTheme:sectorrotation';
+    function applyTheme(t){ document.documentElement.classList.toggle('dark-theme', t==='dark'); localStorage.setItem(KEY,t); const btn=document.getElementById('themeToggleBtn'); if(btn) btn.textContent = t==='dark' ? '☀' : '🌙'; }
+    let saved = localStorage.getItem(KEY) || 'light';
+    applyTheme(saved);
+    document.getElementById('themeToggleBtn').addEventListener('click', function(){ applyTheme(document.documentElement.classList.contains('dark-theme')?'light':'dark'); renderAll(); });
+  })();
+
+  let rotationData = null;
+  let chartInstance = null;
+  let sortKey = 'trendDelta', sortDir = 'desc';
+  const SECTOR_COLORS = {
+    'Technology':'#0e7490','Healthcare':'#15803d','Financial Services':'#b45309','Energy':'#b91c1c',
+    'Consumer Cyclical':'#7c3aed','Consumer Defensive':'#0891b2','Industrials':'#4b5563',
+    'Utilities':'#ca8a04','Real Estate':'#be185d','Basic Materials':'#854d0e','Communication Services':'#2563eb',
+  };
+  const COLUMNS = [
+    {key:'sector', label:'Sektor'}, {key:'latestYield', label:'Rendite (letztes Jahr)'},
+    {key:'avg3y', label:'Ø letzte 3J'}, {key:'avgPrev3y', label:'Ø Jahre davor'},
+    {key:'trendDelta', label:'Trend-Delta'}, {key:'symbolCount', label:'Firmen'},
+  ];
+  function buildHead(){
+    document.getElementById('headRow').innerHTML = COLUMNS.map(c=>`<th class="${sortKey===c.key?'sorted':''}" onclick="sortBy('${c.key}')">${c.label}${sortKey===c.key?(sortDir==='asc'?' ▲':' ▼'):''}</th>`).join('');
+  }
+  window.sortBy = function(key){ if(sortKey===key){ sortDir=sortDir==='asc'?'desc':'asc'; } else { sortKey=key; sortDir='desc'; } buildHead(); renderTable(); };
+
+  function computeSectorSummary(sector){
+    const series = rotationData.series[sector].filter(p=>p.avgYieldPct!=null);
+    if(series.length===0) return null;
+    const last = series[series.length-1];
+    const last3 = series.slice(-3);
+    const prev3 = series.slice(-6,-3);
+    const avg3y = last3.reduce((s,p)=>s+p.avgYieldPct,0) / (last3.length||1);
+    const avgPrev3y = prev3.length ? prev3.reduce((s,p)=>s+p.avgYieldPct,0) / prev3.length : null;
+    const trendDelta = avgPrev3y!=null ? avg3y - avgPrev3y : null;
+    return { sector, latestYield: last.avgYieldPct, latestYear: last.year, avg3y, avgPrev3y, trendDelta, symbolCount: last.symbolCount };
+  }
+
+  function renderAll(){
+    renderChart();
+    renderTable();
+  }
+
+  function renderChart(){
+    const ctx = document.getElementById('rotationChart').getContext('2d');
+    if(chartInstance) chartInstance.destroy();
+    const isDark = document.documentElement.classList.contains('dark-theme');
+    const gridColor = isDark ? 'rgba(125,146,168,0.15)' : 'rgba(82,96,109,0.12)';
+    const textColor = isDark ? '#7d92a8' : '#52606d';
+    const rangeYears = parseInt(document.getElementById('rangeSelect').value);
+    const allYears = rotationData.years;
+    const cutoffYear = allYears[allYears.length-1] - rangeYears;
+    const years = allYears.filter(y=>y>=cutoffYear);
+    const datasets = rotationData.sectors.map(sector=>{
+      const byYear = {}; rotationData.series[sector].forEach(p=>{ byYear[p.year]=p.avgYieldPct; });
+      return {
+        label: sector, data: years.map(y=>byYear[y]??null), borderColor: SECTOR_COLORS[sector]||'#888',
+        borderWidth: 2, pointRadius: 2, fill:false, tension:0.25, spanGaps:true,
+      };
+    });
+    chartInstance = new Chart(ctx, {
+      type:'line',
+      data:{ labels: years, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ color:textColor, boxWidth:12, font:{size:10} } } },
+        scales:{
+          x:{ ticks:{ color:textColor, maxTicksLimit:15 }, grid:{ color:gridColor } },
+          y:{ ticks:{ color:textColor, callback:v=>v+'%' }, grid:{ color:gridColor }, title:{display:true,text:'Ø Rendite-Proxy %',color:textColor} },
+        },
+      },
+    });
+  }
+
+  function renderTable(){
+    const rows = rotationData.sectors.map(computeSectorSummary).filter(Boolean);
+    rows.sort((a,b)=>{
+      const av=a[sortKey], bv=b[sortKey];
+      if(typeof av==='string') return sortDir==='asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      const an = av==null?-Infinity:av, bn = bv==null?-Infinity:bv;
+      return sortDir==='asc' ? an-bn : bn-an;
+    });
+    document.getElementById('bodyRows').innerHTML = rows.map(r=>{
+      const trendCls = r.trendDelta==null?'flat':(r.trendDelta>0.1?'up':(r.trendDelta<-0.1?'down':'flat'));
+      const arrow = r.trendDelta==null?'—':(r.trendDelta>0.1?'▲':(r.trendDelta<-0.1?'▼':'→'));
+      return `<tr>
+        <td>${r.sector}</td><td>${r.latestYield.toFixed(2)}% (${r.latestYear})</td>
+        <td>${r.avg3y.toFixed(2)}%</td><td>${r.avgPrev3y!=null?r.avgPrev3y.toFixed(2)+'%':'—'}</td>
+        <td class="trend ${trendCls}">${arrow} ${r.trendDelta!=null?(r.trendDelta>0?'+':'')+r.trendDelta.toFixed(2)+'%':''}</td>
+        <td>${r.symbolCount}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function loadData(){
+    try{
+      const res = await fetch(DATA_URL);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      rotationData = await res.json();
+      document.getElementById('cacheBadge').textContent = `● ${rotationData.sectors.length} Sektoren, ${rotationData.years[0]}–${rotationData.years[rotationData.years.length-1]}`;
+      buildHead();
+      renderAll();
+    }catch(e){
+      document.getElementById('cacheBadge').textContent = '● Fehler';
+      document.getElementById('bodyRows').innerHTML = `<tr><td colspan="6" class="loading-line">Fehler: ${e.message}</td></tr>`;
+    }
+  }
+  loadData();
+</script>
+</body>
+</html>
